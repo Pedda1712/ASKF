@@ -1768,6 +1768,15 @@ packages:
   license_family: GPL
   size: 554699
   timestamp: 1709396557528
+- kind: pypi
+  name: askf
+  version: 0.1.dev3+g304820d.d20241003
+  path: .
+  sha256: 87d64986730930e08743dbc658742a83700dd4f92294981c73a5cc137b64532b
+  requires_dist:
+  - scikit-learn>=1.4.2
+  requires_python: '>=3.9'
+  editable: true
 - kind: conda
   name: attr
   version: 2.5.1
@@ -10179,15 +10188,6 @@ packages:
   - pkg:pypi/six
   size: 14259
   timestamp: 1620240338595
-- kind: pypi
-  name: ASKF
-  version: 0.1.2.dev1+g939dd4e.d20240518
-  path: .
-  sha256: edf806caa43c79714fce94c52a481bf1eedf6cd347337b6a471e24a8f2bffedc
-  requires_dist:
-  - scikit-learn>=1.4.2
-  requires_python: '>=3.9'
-  editable: true
 - kind: conda
   name: snowballstemmer
   version: 2.2.0

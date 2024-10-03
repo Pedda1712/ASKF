@@ -6,10 +6,9 @@ build-backend = "setuptools.build_meta"
 name = "ASKF"
 dynamic = ["version"]
 authors = [
-  { name="Vighnesh Birodkar", email="vighneshbirodkar@nyu.edu" },
-  { name="Guillaume Lemaitre", email="g.lemaitre58@gmail.com" },
+  { name="Peter Preinesberger", email="peter.preinesberger@study.thws.de" },
 ]
-description = "A template for scikit-learn compatible packages."
+description = "An Implementation of Adaptive Subspace Kernel Fusion in the sklearn style."
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
@@ -29,8 +28,8 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/scikit-learn-contrib/ASKF"
-Issues = "https://github.com/scikit-learn-contrib/ASKF/issues"
+Homepage = "https://github.com/Pedda1712/ASKF"
+Issues = "https://github.com/Pedda1712/ASKF/issues"
 
 [tool.setuptools_scm]
 version_file = "ASKF/_version.py"
@@ -57,6 +56,17 @@ black = { cmd = "black --check --diff ASKF && black --check --diff examples" }
 ruff = { cmd = "ruff check --output-format=full ASKF && ruff check --output-format=full examples" }
 lint = { depends_on = ["black", "ruff"]}
 
+[tool.pixi.feature.format.dependencies]
+# The version below should be aligned with the one of `.pre-commit-config.yaml`
+black = "23.3.0"
+pre-commit = "3.7.1"
+ruff = "0.4.2"
+
+[tool.pixi.feature.format.tasks]
+black_fmt = { cmd = "black ASKF && black examples" }
+ruff_fmt = { cmd = "ruff format ASKF && ruff format examples" }
+format = { depends_on = ["black_fmt", "ruff_fmt"]}
+
 [tool.pixi.feature.test.dependencies]
 pytest = "*"
 pytest-cov = "*"
@@ -82,7 +92,7 @@ clean-doc = { cmd = "rm -rf _build", cwd = "doc" }
 doc = ["doc"]
 lint = ["lint"]
 test = ["test"]
-dev = ["doc", "lint", "test"]
+dev = ["doc", "lint", "test", "format"]
 
 [tool.black]
 line-length = 88

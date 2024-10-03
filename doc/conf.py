@@ -10,9 +10,9 @@ import sys
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 from importlib.metadata import version as get_version
 
-project = "Scikit-learn Project Template"
-copyright = "2016, V. Birodkar"
-author = "V. Birodkar"
+project = "ASKF sklearn Implementation"
+copyright = "2024, P. Preinesberger"
+author = "P. Preinesberger"
 release = get_version('ASKF')
 version = ".".join(release.split(".")[:3])
 
