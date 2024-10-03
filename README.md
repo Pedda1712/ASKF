@@ -1,18 +1,8 @@
-ASKF - A template for scikit-learn contributions
+ASKF - Adaptive Subspace Kernel Fusion
 ============================================================
 
-![tests](https://github.com/scikit-learn-contrib/ASKF/actions/workflows/python-app.yml/badge.svg)
-[![codecov](https://codecov.io/gh/scikit-learn-contrib/ASKF/graph/badge.svg?token=L0XPWwoPLw)](https://codecov.io/gh/scikit-learn-contrib/ASKF)
-![doc](https://github.com/scikit-learn-contrib/ASKF/actions/workflows/deploy-gh-pages.yml/badge.svg)
+**ASKF** is a multiple kernel learning method that combines and reweights
+kernel subspace information. This repository contains an effort
+to provide a sklearn-compatible implementation of the method.
 
-**ASKF** is a template project for [scikit-learn](https://scikit-learn.org)
-compatible extensions.
-
-It aids development of estimators that can be used in scikit-learn pipelines and
-(hyper)parameter search, while facilitating testing (including some API compliance),
-documentation, open source development, packaging, and continuous integration.
-
-Refer to the documentation to modify the template for your own scikit-learn
-contribution: https://contrib.scikit-learn.org/ASKF
-
-*Thank you for cleanly contributing to the scikit-learn ecosystem!*
+*ASKF is currently under development and not yet usable*
