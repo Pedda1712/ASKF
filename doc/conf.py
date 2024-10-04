@@ -58,7 +58,7 @@ html_sidebars = {
 
 html_theme_options = {
     "external_links": [],
-    "github_url": "https://github.com/scikit-learn-contrib/ASKF",
+    "github_url": "https://github.com/Pedda1712/ASKF",
     # "twitter_url": "https://twitter.com/pandas_dev",
     "use_edit_page_button": True,
     "show_toc_level": 1,
@@ -66,9 +66,9 @@ html_theme_options = {
 }
 
 html_context = {
-    "github_user": "scikit-learn-contrib",
+    "github_user": "Pedda1712",
     "github_repo": "ASKF",
-    "github_version": "master",
+    "github_version": "main",
     "doc_path": "doc",
 }
 

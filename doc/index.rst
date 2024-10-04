@@ -12,8 +12,8 @@ Project template for `scikit-learn` extension
 **Date**: |today| **Version**: |version|
 
 **Useful links**:
-`Source Repository <https://github.com/scikit-learn-contrib/ASKF>`__ |
-`Issues & Ideas <https://github.com/scikit-learn-contrib/ASKFk/issues>`__ |
+`Source Repository <https://github.com/Pedda1712/ASKF>`__ |
+`Issues & Ideas <https://github.com/Pedda1712/ASKF/issues>`__ |
 
 This is the documentation for the `ASKF` to help at extending
 `scikit-learn`. It provides some information on how to build your own custom
