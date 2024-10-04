@@ -114,6 +114,8 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         """
         if len(Ks) == 0:
             X, y = self._validate_data(X, y)
+            if np.shape(X)[0] == 1:
+                raise ValueError("More than one sample required in BinaryASKFClassifier")
             Ks = [X @ X.T]
         self._oldX = X
         check_classification_targets(y)
