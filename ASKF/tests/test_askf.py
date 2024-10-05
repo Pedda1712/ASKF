@@ -7,7 +7,7 @@
 from sklearn.datasets import make_blobs
 import numpy as np
 import pytest
-from ASKF import BinaryASKFClassifier
+from ASKF import BinaryASKFClassifier, ASKFKernels
 
 
 @pytest.fixture
@@ -31,8 +31,8 @@ def test_askf_classifier(data):
     X, y = data
     clf = BinaryASKFClassifier()
 
-    clf.fit(None, y, Ks=[lin_kernel(X, X), rbf_kernel(X, X)])
+    clf.fit(ASKFKernels([lin_kernel(X, X), rbf_kernel(X, X)]), y)
     assert hasattr(clf, "classes_")
 
-    y_pred = clf.predict(None, Ktests=[lin_kernel(X, X), rbf_kernel(X, X)])
+    y_pred = clf.predict(ASKFKernels([lin_kernel(X, X), rbf_kernel(X, X)]))
     assert y_pred.shape == (X.shape[0],)

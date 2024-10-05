@@ -8,32 +8,14 @@ This is an example on how to document the API of your own project.
 
 .. currentmodule:: ASKF
 
-Estimator
-=========
-
-.. autosummary::
-   :toctree: generated/
-   :template: class.rst
-
-   TemplateEstimator
-
-Transformer
+Classifiers
 ===========
 
 .. autosummary::
    :toctree: generated/
    :template: class.rst
 
-   TemplateTransformer
-
-Predictor
-=========
-
-.. autosummary::
-   :toctree: generated/
-   :template: class.rst
-
-    TemplateClassifier
+    BinaryASKFClassifier
 
 
 Utilities

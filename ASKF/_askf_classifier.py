@@ -6,11 +6,17 @@
 # License: BSD 3 clause
 
 import numpy as np
+import scipy
 from sklearn.base import BaseEstimator, ClassifierMixin, _fit_context
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.utils.validation import check_is_fitted
 from ASKF.solvers import canonical_solve
 from ASKF.utils import get_spectral_properties
+
+
+def ASKFKernels(Ks):
+    """Turn a kernel list into input for BinaryASKFClassifier.fit()"""
+    return np.transpose(np.array(Ks), (1, 2, 0))
 
 
 class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
@@ -37,18 +43,18 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
     max_iter : int, default=200
         Maximum iterations of the underlying genosolver.
     variation : string, default="default"
-        ASKF variation to use, may change how the regularization term looks
-        "like.
+        ASKF variation to use, may change what the regularization term looks
+        like.
 
     Examples
     --------
     >>> from sklearn.datasets import make_blobs
     >>> from ASKF import BinaryASKFClassifier
     >>> X, y = make_blobs(n_samples=50, n_features=2, centers=2, random_state=0)
-    >>> clf = BinaryASKFClassifier(beta=1.0, gamma=1.0, delta=1.0, c=1.0).fit(None, y, Ks=[X @ X.T]) # doctest:+SKIP
+    >>> clf = BinaryASKFClassifier(beta=1.0, gamma=1.0, delta=1.0, c=1.0).fit(ASKFKernels([X @ X.T]), y) # doctest:+SKIP
     error
     ...
-    >>> clf.predict(None, Ktests=[X @ X.T]) # doctest:+SKIP
+    >>> clf.predict(ASKFKernels([X @ X.T])) # doctest:+SKIP
     array([1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1,
        1, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1,
        0, 1, 1, 0, 1, 0])
@@ -57,11 +63,11 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
     # This is a dictionary allowing to define the type of parameters.
     # It used to validate parameter within the `_fit_context` decorator.
     _parameter_constraints = {
-        "beta": [float],
-        "gamma": [float],
-        "delta": [float],
-        "c": [float],
-        "subsample_size": [float],
+        "beta": [float, int],
+        "gamma": [float, int],
+        "delta": [float, int],
+        "c": [float, int],
+        "subsample_size": [float, int],
         "max_iter": [int],
         "variation": [str],
         "gpu": [bool],
@@ -86,45 +92,58 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         self.max_iter = max_iter
         self.variation = variation
         self.gpu = gpu
+        self._pairwise = True
 
     def _more_tags(self):
-        return {"binary_only": True, "poor_score": True}
+        return {"binary_only": True, "poor_score": True, "pairwise": True}
 
     @_fit_context(prefer_skip_nested_validation=True)
     def fit(self, X, y, Ks=[]):
         """Fit an ASKF classifier.
         Note: As ASKF is purely kernel based, vectorial inputs
         would not make sense here. Instead, deviating from other
-        sklearn classifiers, you need to input an array of
+        sklearn classifiers, you need to input an (np)array of
         similarity matrices for the input.
 
         Parameters
         ----------
-        X : dummy input for sklearn, can pass None
+        X : array-like, shape (n_kernels, n_samples, n_samples)
+            The array of kernel matrices to consider.
         y : array-like, shape (n_samples,)
             The target values. An array of int.
             Can only contain two distinct values.
-        Ks : array of kernel matrices, each kernel is(n_samples, n_samples)
-            The training input kernels, which need not be psd.
 
         Returns
         -------
         self : object
             Returns self.
         """
-        if len(Ks) == 0:
+
+        Ks = []
+        if not scipy.sparse.issparse(X):
+            X = np.array(X)
+        if X.ndim != 3:
             X, y = self._validate_data(X, y)
+            self.classes_ = np.unique(y)
+            if len(self.classes_) > 2:
+                print("more than 2 classes in BinaryASKFClassifier")
+            if len(self.classes_) == 1:
+                raise ValueError(
+                    "Classifier can't train when only one class is present."
+                )
+            if np.shape(X)[0] != np.shape(X)[1]:
+                raise ValueError("Kernel Matrix has to be square!")
             if np.shape(X)[0] == 1:
                 raise ValueError(
                     "More than one sample required in BinaryASKFClassifier"
                 )
             Ks = [X @ X.T]
+        else:
+            self.classes_ = np.unique(y)
+            Ks = np.transpose(X, (2, 0, 1))
         self._oldX = X
-        check_classification_targets(y)
 
-        self.classes_ = np.unique(y)
-        if len(self.classes_) > 2:
-            print("more than 2 classes in BinaryASKFClassifier")
+        check_classification_targets(y)
 
         # correct labels
         y = np.where(y == self.classes_[0], 1, -1)
@@ -172,17 +191,15 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
 
         return self
 
-    def predict(self, X, Ktests=[]):
+    def predict(self, X):
         """ASKF prediction function. This predictor requires similarties to the
         complete training data.
 
         Parameters
         ----------
-        X      : dummy input for sklearn
-        Ktests : array of similarity matrices between unseen data (row index)
-                 and training data
-            The input samples.
-
+        X      : array-like, shape (n_kernels, n_test, n_train)
+            similarities between test data and training data in n_kernels
+            different kernels
         Returns
         -------
         y : ndarray, shape (n_samples,)
@@ -193,9 +210,14 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         # Check if fit had been called
         check_is_fitted(self)
 
-        if len(Ktests) == 0:
+        Ktests = []
+        if not scipy.sparse.issparse(X):
+            X = np.array(X)
+        if X.ndim != 3:
             X = self._validate_data(X)
             Ktests = [X @ self._oldX.T]
+        else:
+            Ktests = np.transpose(X, (2, 0, 1))
 
         # Input validation
         # We need to set reset=False because we don't want to overwrite `n_features_in_`

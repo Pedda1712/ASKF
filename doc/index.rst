@@ -6,7 +6,7 @@
 :notoc:
 
 #############################################
-Project template for `scikit-learn` extension
+Adaptive Subspace Kernel Fusion Estimators
 #############################################
 
 **Date**: |today| **Version**: |version|
@@ -15,9 +15,9 @@ Project template for `scikit-learn` extension
 `Source Repository <https://github.com/Pedda1712/ASKF>`__ |
 `Issues & Ideas <https://github.com/Pedda1712/ASKF/issues>`__ |
 
-This is the documentation for the `ASKF` to help at extending
-`scikit-learn`. It provides some information on how to build your own custom
-`scikit-learn` compatible estimators as well as a template to package them.
+This is the documentation for the ASKF python package. ASKF is a multiple kernel
+learning (MKL) associated method that is able to fuse data subspace information
+from multiple sources and can be used for classification and regression tasks.
 
 
 .. grid:: 1 2 2 2
