@@ -10,7 +10,12 @@ import scipy
 from sklearn.base import BaseEstimator, ClassifierMixin, _fit_context
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.utils.validation import check_is_fitted
-from ASKF.solvers import canonical_solve
+from ASKF.solvers import (
+    canonical_solve,
+    canonical_squared_gamma_solve,
+    canonical_faster_solve,
+    canonical_squared_gamma_faster_solve,
+)
 from ASKF.utils import get_spectral_properties
 
 
@@ -45,6 +50,10 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
     variation : string, default="default"
         ASKF variation to use, may change what the regularization term looks
         like.
+        "canonical-faster", canonical ASKF with usual gamma regularization rewritten without fro-norm
+        "canonical" | "default", canonical ASKF
+        "squared-gamma", canonical ASKF with squared gamma regularization
+        "squared-gamma-faster", like squared-gamma but trace replaced by vector-matrix-vector product
 
     Examples
     --------
@@ -98,7 +107,7 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         return {"binary_only": True, "poor_score": True, "pairwise": True}
 
     @_fit_context(prefer_skip_nested_validation=True)
-    def fit(self, X, y, Ks=[]):
+    def fit(self, X, y):
         """Fit an ASKF classifier.
         Note: As ASKF is purely kernel based, vectorial inputs
         would not make sense here. Instead, deviating from other
@@ -162,7 +171,22 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         eigenvalues = None
 
         match self.variation:
-            case "default" | "canonical" | _:
+            case "squared-gamma":
+                result, self._alphas, eigenvalues = canonical_squared_gamma_solve(
+                    K_old,
+                    self.beta,
+                    self.gamma,
+                    self.delta,
+                    self.c,
+                    y,
+                    old_eigenvalues,
+                    eigenvectors,
+                    m_np,
+                    0,
+                    self.max_iter,
+                )
+                self.n_iter_ = result.nit
+            case "canonical":
                 result, self._alphas, eigenvalues = canonical_solve(
                     K_old,
                     self.beta,
@@ -177,6 +201,42 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
                     self.max_iter,
                 )
                 self.n_iter_ = result.nit
+            case "default" | "canonical-faster":
+                F = (eigenvectors.T @ eigenvectors) * (eigenvectors.T @ eigenvectors)
+                result, self._alphas, eigenvalues = canonical_faster_solve(
+                    F,
+                    self.beta,
+                    self.gamma,
+                    self.delta,
+                    self.c,
+                    y,
+                    old_eigenvalues,
+                    eigenvectors,
+                    m_np,
+                    0,
+                    self.max_iter,
+                )
+                self.n_iter_ = result.nit
+            case "squared-gamma-faster":
+                F = (eigenvectors.T @ eigenvectors) * (eigenvectors.T @ eigenvectors)
+                result, self._alphas, eigenvalues = (
+                    canonical_squared_gamma_faster_solve(
+                        F,
+                        self.beta,
+                        self.gamma,
+                        self.delta,
+                        self.c,
+                        y,
+                        old_eigenvalues,
+                        eigenvectors,
+                        m_np,
+                        0,
+                        self.max_iter,
+                    )
+                )
+                self.n_iter_ = result.nit
+            case _:
+                raise ValueError("unkown variation")
 
         K_new = eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T
 

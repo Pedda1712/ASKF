@@ -1,6 +1,6 @@
-# ruff: noqa: I001
+# ruff : noqa: I001
 """
-Sample code automatically generated on 2024-10-04 08:33:58
+Sample code automatically generated on 2024-10-06 11:25:22
 
 by geno from www.geno-project.org
 
@@ -19,7 +19,7 @@ variables
   vector alphas
   vector eigenvalues
 min
-  0.5*(alphas.*y)'*eigenvectors*diag(eigenvalues)*eigenvectors'*(alphas.*y)-sum(alphas)+beta*sum(eigenvalues)+gamma*norm2(Kold-eigenvectors*diag(eigenvalues)*eigenvectors')
+  0.5*(alphas.*y)'*eigenvectors*diag(eigenvalues)*eigenvectors'*(alphas.*y)-sum(alphas)+beta*sum(eigenvalues)+gamma*tr((Kold-eigenvectors*diag(eigenvalues)*eigenvectors')'*(Kold-eigenvectors*diag(eigenvalues)*eigenvectors'))
 st
   alphas >= 0
   alphas <= c
@@ -35,8 +35,10 @@ from __future__ import division, print_function, absolute_import
 
 from math import inf
 
+# from timeit import default_timer as timer
+
 try:
-    from genosolver import minimize, check_version  # noqa: I001
+    from genosolver import minimize, check_version
 
     USE_GENO_SOLVER = True
 except ImportError:
@@ -109,20 +111,26 @@ class GenoNLP:
         assert len(dim) == 2
         self.eigenvectors_rows = dim[0]
         self.eigenvectors_cols = dim[1]
-        self.alphas_rows = self.y_rows
+        self.alphas_rows = self.Kold_rows
         self.alphas_cols = 1
         self.alphas_size = self.alphas_rows * self.alphas_cols
         self.eigenvalues_rows = self.eigenvectors_cols
         self.eigenvalues_cols = 1
         self.eigenvalues_size = self.eigenvalues_rows * self.eigenvalues_cols
         # the following dim assertions need to hold for this problem
-        assert self.eigenvalues_rows == self.eigenvectors_cols
         assert (
-            self.eigenvectors_rows
-            == self.alphas_rows
+            self.Kold_rows
             == self.Kold_cols
             == self.y_rows
-            == self.Kold_rows
+            == self.alphas_rows
+            == self.eigenvectors_rows
+        )
+        assert (
+            self.Kold_rows
+            == self.Kold_cols
+            == self.y_rows
+            == self.alphas_rows
+            == self.eigenvectors_rows
         )
         assert self.eigenvalues_rows == self.eigenvectors_cols
 
@@ -165,26 +173,24 @@ class GenoNLP:
         f_ = (
             ((0.5 * (t_0).dot(t_2)) - self.np.sum(alphas))
             + (self.beta * self.np.sum(eigenvalues))
-        ) + (self.gamma * self.np.linalg.norm(T_3, "fro"))
-
+        ) + (
+            self.gamma
+            * self.np.trace(
+                (
+                    self.Kold.T
+                    - (self.eigenvectors * eigenvalues[self.np.newaxis, :]).dot(
+                        self.eigenvectors.T
+                    )
+                ).dot(T_3)
+            )
+        )
         g_0 = ((0.5 * (t_2 * self.y)) - self.np.ones(self.alphas_rows)) + (
             0.5 * ((self.eigenvectors).dot((t_1 * eigenvalues)) * self.y)
         )
         g_1 = (
             (0.5 * (t_1 * t_1)) + (self.beta * self.np.ones(self.eigenvalues_rows))
         ) - (
-            (
-                self.gamma
-                / self.np.linalg.norm(
-                    (
-                        self.Kold.T
-                        - (self.eigenvectors * eigenvalues[self.np.newaxis, :]).dot(
-                            self.eigenvectors.T
-                        )
-                    ),
-                    "fro",
-                )
-            )
+            (2 * self.gamma)
             * self.np.diag(((self.eigenvectors.T).dot(T_3)).dot(self.eigenvectors))
         )
         g_ = self.np.hstack((g_0, g_1))
@@ -245,6 +251,7 @@ def solve(
     max_iter=3000,
 ):
     beta = -beta
+    # start = timer()
     NLP = GenoNLP(Kold, beta, gamma, delta, c, y, eigenvaluesOld, eigenvectors, np)
     x0 = NLP.getStartingPoint()
     lb = NLP.getLowerBounds()
@@ -302,4 +309,5 @@ def solve(
 
     # assemble solution and map back to original problem
     alphas, eigenvalues = NLP.variables(result.x)
+    # elapsed = timer() - start
     return result, alphas, eigenvalues
