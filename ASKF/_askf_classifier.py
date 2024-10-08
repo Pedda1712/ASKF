@@ -251,8 +251,8 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
 
         return self
 
-    def predict(self, X):
-        """ASKF prediction function. This predictor requires similarties to the
+    def decision_function(self, X):
+        """ASKF SVM decision function. This predictor requires similarties to the
         complete training data.
 
         Parameters
@@ -263,8 +263,7 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         Returns
         -------
         y : ndarray, shape (n_samples,)
-            The label for each sample is the label of the closest sample
-            seen during fit.
+            The decision function for each data point.
         """
 
         # Check if fit had been called
@@ -291,8 +290,29 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         K_test_proj = np.dot(self._projMatrix, K_test_sum.T)
 
         y_predict = np.dot(self._alphas * self._y, K_test_proj) - self._bias
+
+        return -y_predict
+
+    def predict(self, X):
+        """ASKF prediction function. This predictor requires similarties to the
+        complete training data.
+
+        Parameters
+        ----------
+        X      : array-like, shape (n_kernels, n_test, n_train)
+            similarities between test data and training data in n_kernels
+            different kernels
+        Returns
+        -------
+        y : ndarray, shape (n_samples,)
+            The label for each sample is the label of the closest sample
+            seen during fit.
+        """
+        # Check if fit had been called
+        check_is_fitted(self)
+
         y_predict = np.where(
-            y_predict > 0,
+            self.decision_function(X) < 0,
             self.classes_[0],
             self.classes_[min(1, len(self.classes_) - 1)],
         )
