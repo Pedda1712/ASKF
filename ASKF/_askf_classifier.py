@@ -15,22 +15,18 @@ from ASKF.solvers import (
     canonical_squared_gamma_solve,
     canonical_faster_solve,
     canonical_squared_gamma_faster_solve,
+    vo_canonical_solve,
 )
 from ASKF.utils import get_spectral_properties
 
 
-def ASKFKernels(Ks):
-    """Turn a kernel list into input for BinaryASKFClassifier.fit()"""
-    return np.transpose(np.array(Ks), (1, 2, 0))
-
-
 class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
     """An Adaptive Subspace Kernel Fusion based classifier.
+    Implements only binary classification.
+    Compatible with GridSearchCV and OneVsRestClassifier.
 
     Parameters
     ----------
-    demo_param : str, default='demo'
-        A parameter used for demonstation of how to pass and store paramters.
     beta : float, default=1.0
         The paramter governing the first regularization term, penalizing low
         subspace weights.
@@ -69,8 +65,6 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
        0, 1, 1, 0, 1, 0])
     """
 
-    # This is a dictionary allowing to define the type of parameters.
-    # It used to validate parameter within the `_fit_context` decorator.
     _parameter_constraints = {
         "beta": [float, int],
         "gamma": [float, int],
@@ -104,7 +98,12 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         self._pairwise = True
 
     def _more_tags(self):
-        return {"binary_only": True, "poor_score": True, "pairwise": True}
+        return {
+            "binary_only": True,
+            "poor_score": True,
+            "pairwise": True,
+            "three_d_array": True,
+        }
 
     @_fit_context(prefer_skip_nested_validation=True)
     def fit(self, X, y):
@@ -116,7 +115,7 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
 
         Parameters
         ----------
-        X : array-like, shape (n_kernels, n_samples, n_samples)
+        X : array-like, shape (n_samples, n_samples, n_kernels)
             The array of kernel matrices to consider.
         y : array-like, shape (n_samples,)
             The target values. An array of int.
@@ -129,6 +128,8 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         """
 
         Ks = []
+        # input processing so that the sklearn tests pass
+        # (or: making the hippo dance)
         if not scipy.sparse.issparse(X):
             X = np.array(X)
         if X.ndim != 3:
@@ -257,7 +258,7 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
 
         Parameters
         ----------
-        X      : array-like, shape (n_kernels, n_test, n_train)
+        X      : array-like, shape (n_test, n_train, n_kernels)
             similarities between test data and training data in n_kernels
             different kernels
         Returns
@@ -277,10 +278,6 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
             Ktests = [X @ self._oldX.T]
         else:
             Ktests = np.transpose(X, (2, 0, 1))
-
-        # Input validation
-        # We need to set reset=False because we don't want to overwrite `n_features_in_`
-        # `feature_names_in_` but only check that the shape is consistent.
 
         K_test_sum = np.zeros(Ktests[0].shape)
 
@@ -305,8 +302,7 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         Returns
         -------
         y : ndarray, shape (n_samples,)
-            The label for each sample is the label of the closest sample
-            seen during fit.
+            the predicted class
         """
         # Check if fit had been called
         check_is_fitted(self)
@@ -318,3 +314,265 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         )
 
         return y_predict
+
+
+def mkVecLabel_(cl, len):
+    """Make vector label.
+
+    Ref.: https://eprints.soton.ac.uk/261157/1/vosvm_2.pdf
+
+    Parameters
+    ----------
+    cl, class index starting at 0
+    len, how many classes there are
+    """
+    vec = np.zeros((len, 1))
+    for i in range(0, len):
+        if i == cl:
+            vec[i] = np.sqrt((len - 1) / (len))
+        else:
+            vec[i] = (-1) / np.sqrt(len * (len - 1))
+    return vec
+
+
+class VectorizedASKFClassifier(ClassifierMixin, BaseEstimator):
+    """An Adaptive Subspace Kernel Fusion based classifier.
+    Implements a vector-labeled strategy for holisitic treatment
+    of multi-classification.
+
+    Parameters
+    ----------
+    beta : float, default=1.0
+        The paramter governing the first regularization term, penalizing low
+        subspace weights.
+    gamma : float, default=1.0
+        The parameter governing the second regulariuation term, penalizing
+        large deviations in the kernel matrix.
+    delta : float, default=1.0
+        Sets an upper limit for the subspace weights.
+    c : float, default=1.0
+        C parameter of the SVM.
+    subsample_size: float, default=0.4
+        How many eigenvectors of the kernel matrices to consider.
+        1.0 considers [n_samples] eigenvectors, values lower than 1 lead
+        to lower rank internal kernels. "n_m" keeps all eigenvectors.
+    max_iter : int, default=200
+        Maximum iterations of the underlying genosolver.
+    variation : string, default="default"
+        ASKF variation to use, may change what the regularization term looks
+        like.
+        "canonical-faster" | "default", canonical ASKF with vector labels
+        "squared-gamma-faster", squared gamma regularization
+
+    Examples
+    --------
+    >>> from sklearn.datasets import load_iris
+    >>> from ASKF import VectorizedASKFClassifier, ASKFKernels
+    >>> X, y = load_iris(return_X_y=True)
+    >>> clf = VectorizedASKFClassifier(gamma=100,beta=10,c=10).fit(ASKFKernels([X@X.T]), y) # more kernels are possible here (single kernel for demonstration, otherwise pointless) # doctest:+SKIP
+    >>> clf.predict(ASKFKernels([X@X.T])) # doctest:+SKIP
+    array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+       0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1,
+       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+       1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 2, 1, 2, 2, 2, 2, 1, 2, 2, 2,
+       1, 2, 2, 1, 2, 2, 2, 2, 2, 1, 2, 1, 2, 1, 2, 2, 1, 1, 2, 2, 2, 2,
+       2, 1, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 1, 2, 1])
+
+    """
+
+    _parameter_constraints = {
+        "beta": [float, int],
+        "gamma": [float, int],
+        "delta": [float, int],
+        "c": [float, int],
+        "subsample_size": [float, int],
+        "max_iter": [int],
+        "variation": [str],
+        "gpu": [bool],
+    }
+
+    def __init__(
+        self,
+        beta=1.0,
+        gamma=1.0,
+        delta=1.0,
+        c=1.0,
+        subsample_size=0.4,
+        max_iter=200,
+        variation="default",
+        gpu=False,
+    ):
+        self.beta = beta
+        self.gamma = gamma
+        self.delta = delta
+        self.c = c
+        self.subsample_size = subsample_size
+        self.max_iter = max_iter
+        self.variation = variation
+        self.gpu = gpu
+        self._pairwise = True
+
+    def _more_tags(self):
+        return {
+            "poor_score": True,
+            "pairwise": True,
+            "three_d_array": True,
+            "multioutput_only": True,
+        }
+
+    @_fit_context(prefer_skip_nested_validation=True)
+    def fit(self, X, y):
+        """Fit an ASKF classifier.
+        Note: As ASKF is purely kernel based, vectorial inputs
+        would not make sense here. Instead, deviating from other
+        sklearn classifiers, you need to input an (np)array of
+        similarity matrices for the input.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_samples, n_kernels)
+            The array of kernel matrices to consider.
+        y : array-like, shape (n_samples,)
+            The target class values.
+
+        Returns
+        -------
+        self : object
+            Returns self.
+        """
+
+        Ks = []
+        if not scipy.sparse.issparse(X):
+            X = np.array(X)
+        if X.ndim != 3:
+            X, y = self._validate_data(X, y)
+            self.classes_ = np.unique(y)
+            if len(self.classes_) == 1:
+                raise ValueError(
+                    "Classifier can't train when only one class is present."
+                )
+            if np.shape(X)[0] != np.shape(X)[1]:
+                raise ValueError("Kernel Matrix has to be square!")
+            if np.shape(X)[0] == 1:
+                raise ValueError(
+                    "More than one sample required in BinaryASKFClassifier"
+                )
+            Ks = [X @ X.T]
+        else:
+            self.classes_ = np.unique(y)
+            Ks = np.transpose(X, (2, 0, 1))
+        self._oldX = X
+
+        check_classification_targets(y)
+
+        # correct labels are indices into the classes array
+        _, y = np.unique(y, return_inverse=True)
+
+        # construction of vector labels
+        self.Y_ = None
+        self.numLabels_ = np.max(y) + 1
+        for cl in np.nditer(y):
+            vec = mkVecLabel_(cl, self.numLabels_)
+            if self.Y_ is None:
+                self.Y_ = vec
+            else:
+                self.Y_ = np.append(self.Y_, vec, axis=1)
+
+        # askf classification
+        eigenprops = get_spectral_properties(Ks, self.subsample_size)
+        old_eigenvalues = eigenprops["eigenvalues"]
+        eigenvectors = eigenprops["eigenvectors"]
+
+        # TODO: for gpu support, replace m_np with cupy object
+        m_np = np
+        if self.gpu:
+            raise RuntimeError("gpu support not implemented yet")
+
+        Ky = self.Y_.T @ self.Y_
+        eigenvalues = None
+        match self.variation:
+            case "default" | "canonical-faster":
+                # TODO: replace with VO solver
+                F = (eigenvectors.T @ eigenvectors) * (eigenvectors.T @ eigenvectors)
+                result, self._alphas, eigenvalues = vo_canonical_solve(
+                    F,
+                    self.beta,
+                    self.gamma,
+                    self.delta,
+                    self.c,
+                    self.Y_,
+                    Ky,
+                    old_eigenvalues,
+                    eigenvectors,
+                    m_np,
+                    0,
+                    self.max_iter,
+                )
+                self.n_iter_ = result.nit
+                # print(eigenvalues)
+            case _:
+                raise ValueError("unkown variation")
+
+        # print(eigenvalues)
+        K_new = eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T
+
+        K_sum = np.zeros((len(y), len(y)))
+        for K in Ks:
+            K_sum += K
+
+        self._projMatrix = m_np.dot(K_new, m_np.linalg.pinv(K_sum))
+        self._svinds = np.where(self._alphas > 0)[0]
+        self._bias = -(self.Y_) + (np.multiply(self._alphas, self.Y_) @ K_new)
+        self._bias = np.median(self._bias[:, self._svinds], axis=1)
+        self._y = y
+
+        return self
+
+    def predict(self, X):
+        """ASKF prediction function. This predictor requires similarties to the
+        complete training data.
+
+        Parameters
+        ----------
+        X      : array-like, shape (n_kernels, n_test, n_train)
+            similarities between test data and training data in n_kernels
+            different kernels
+        Returns
+        -------
+        y : ndarray, shape (n_samples,)
+            the predicted label
+        """
+
+        # Check if fit had been called
+        check_is_fitted(self)
+
+        Ktests = []
+        if not scipy.sparse.issparse(X):
+            X = np.array(X)
+        if X.ndim != 3:
+            X = self._validate_data(X)
+            Ktests = [X @ self._oldX.T]
+        else:
+            Ktests = np.transpose(X, (2, 0, 1))
+
+        K_test_sum = np.zeros(Ktests[0].shape)
+
+        for K_test_orig in Ktests:
+            K_test_sum += K_test_orig
+
+        K_test_proj = (self._projMatrix @ K_test_sum.T).T
+        # vo dot product comparison
+        scores = []
+        for t in range(0, self.numLabels_):
+            yt = mkVecLabel_(t, self.numLabels_)
+            ky = yt.T @ self.Y_
+            sim = np.repeat(-(yt.T @ self._bias), K_test_proj.shape[0]).reshape(
+                -1, 1
+            ) + (K_test_proj @ np.multiply(self._alphas, ky).T)
+            scores.append(sim)
+
+        scores = np.hstack(scores)
+        inds = np.argmax(scores, axis=1)
+
+        return self.classes_[inds]
