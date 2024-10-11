@@ -352,7 +352,7 @@ class VectorizedASKFClassifier(ClassifierMixin, BaseEstimator):
         Sets an upper limit for the subspace weights.
     c : float, default=1.0
         C parameter of the SVM.
-    subsample_size: float, default=0.4
+    subsample_size: float, default=1.0
         How many eigenvectors of the kernel matrices to consider.
         1.0 considers [n_samples] eigenvectors, values lower than 1 lead
         to lower rank internal kernels. "n_m" keeps all eigenvectors.
@@ -398,7 +398,7 @@ class VectorizedASKFClassifier(ClassifierMixin, BaseEstimator):
         gamma=1.0,
         delta=1.0,
         c=1.0,
-        subsample_size=0.4,
+        subsample_size=1.0,
         max_iter=200,
         variation="default",
         gpu=False,
