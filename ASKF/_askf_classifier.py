@@ -108,6 +108,7 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
     @_fit_context(prefer_skip_nested_validation=True)
     def fit(self, X, y):
         """Fit an ASKF classifier.
+        
         Note: As ASKF is purely kernel based, vectorial inputs
         would not make sense here. Instead, deviating from other
         sklearn classifiers, you need to input an (np)array of
@@ -126,7 +127,6 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         self : object
             Returns self.
         """
-
         Ks = []
         # input processing so that the sklearn tests pass
         # (or: making the hippo dance)
@@ -163,25 +163,29 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         old_eigenvalues = eigenprops["eigenvalues"]
         eigenvectors = eigenprops["eigenvectors"]
 
-        # TODO: for gpu support, replace m_np with cupy object
+        K_old = eigenvectors @ np.diag(old_eigenvalues) @ eigenvectors.T
+        eigenvalues = None
+
+        # GENO solver utilizes the GPU through cupy
         m_np = np
         if self.gpu:
-            raise RuntimeError("gpu support not implemented yet")
-
-        K_old = eigenvectors @ m_np.diag(old_eigenvalues) @ eigenvectors.T
-        eigenvalues = None
+            try:
+                import cupy as cp
+                m_np = cp
+            except Exception as e:
+                raise RuntimeError("[ERROR] While attempting to import cupy for GPU support, error ", e, " was raised.")
 
         match self.variation:
             case "squared-gamma":
                 result, self._alphas, eigenvalues = canonical_squared_gamma_solve(
-                    K_old,
+                    m_np.asarray(K_old),
                     self.beta,
                     self.gamma,
                     self.delta,
                     self.c,
-                    y,
-                    old_eigenvalues,
-                    eigenvectors,
+                    m_np.asarray(y),
+                    m_np.asarray(old_eigenvalues),
+                    m_np.asarray(eigenvectors),
                     m_np,
                     0,
                     self.max_iter,
@@ -189,14 +193,14 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
                 self.n_iter_ = result.nit
             case "canonical":
                 result, self._alphas, eigenvalues = canonical_solve(
-                    K_old,
+                    m_np.asarray(K_old),
                     self.beta,
                     self.gamma,
                     self.delta,
                     self.c,
-                    y,
-                    old_eigenvalues,
-                    eigenvectors,
+                    m_np.asarray(y),
+                    m_np.asarray(old_eigenvalues),
+                    m_np.asarray(eigenvectors),
                     m_np,
                     0,
                     self.max_iter,
@@ -205,14 +209,14 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
             case "default" | "canonical-faster":
                 F = (eigenvectors.T @ eigenvectors) * (eigenvectors.T @ eigenvectors)
                 result, self._alphas, eigenvalues = canonical_faster_solve(
-                    F,
+                    m_np.asarray(F),
                     self.beta,
                     self.gamma,
                     self.delta,
                     self.c,
-                    y,
-                    old_eigenvalues,
-                    eigenvectors,
+                    m_np.asarray(y),
+                    m_np.asarray(old_eigenvalues),
+                    m_np.asarray(eigenvectors),
                     m_np,
                     0,
                     self.max_iter,
@@ -222,14 +226,14 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
                 F = (eigenvectors.T @ eigenvectors) * (eigenvectors.T @ eigenvectors)
                 result, self._alphas, eigenvalues = (
                     canonical_squared_gamma_faster_solve(
-                        F,
+                        m_np.asarray(F),
                         self.beta,
                         self.gamma,
                         self.delta,
                         self.c,
-                        y,
-                        old_eigenvalues,
-                        eigenvectors,
+                        m_np.asarray(y),
+                        m_np.asarray(old_eigenvalues),
+                        m_np.asarray(eigenvectors),
                         m_np,
                         0,
                         self.max_iter,
@@ -239,22 +243,25 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
             case _:
                 raise ValueError("unkown variation")
 
+        if self.gpu:
+            self._alphas = m_np.asnumpy(self._alphas)
+            eigenvalues = m_np.asnumpy(eigenvalues)
+
         K_new = eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T
 
         K_sum = np.zeros((len(y), len(y)))
         for K in Ks:
             K_sum += K
 
-        self._projMatrix = m_np.dot(K_new, m_np.linalg.pinv(K_sum))
-        b_values = -y + m_np.sum(self._alphas * y * K_new, axis=1)
-        self._bias = m_np.median(b_values[m_np.where(self._alphas > 0)])
+        self._projMatrix = np.dot(K_new, np.linalg.pinv(K_sum))
+        b_values = -y + np.sum(self._alphas * y * K_new, axis=1)
+        self._bias = np.median(b_values[np.where(self._alphas > 0)])
         self._y = y
 
         return self
 
     def decision_function(self, X):
-        """ASKF SVM decision function. This predictor requires similarties to the
-        complete training data.
+        """ASKF SVM decision function. This predictor requires similarties to the complete training data.
 
         Parameters
         ----------
@@ -266,7 +273,6 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         y : ndarray, shape (n_samples,)
             The decision function for each data point.
         """
-
         # Check if fit had been called
         check_is_fitted(self)
 
@@ -424,6 +430,7 @@ class VectorizedASKFClassifier(ClassifierMixin, BaseEstimator):
     @_fit_context(prefer_skip_nested_validation=True)
     def fit(self, X, y):
         """Fit an ASKF classifier.
+        
         Note: As ASKF is purely kernel based, vectorial inputs
         would not make sense here. Instead, deviating from other
         sklearn classifiers, you need to input an (np)array of
@@ -441,7 +448,6 @@ class VectorizedASKFClassifier(ClassifierMixin, BaseEstimator):
         self : object
             Returns self.
         """
-
         Ks = []
         if not scipy.sparse.issparse(X):
             X = np.array(X)
@@ -484,44 +490,49 @@ class VectorizedASKFClassifier(ClassifierMixin, BaseEstimator):
         old_eigenvalues = eigenprops["eigenvalues"]
         eigenvectors = eigenprops["eigenvectors"]
 
-        # TODO: for gpu support, replace m_np with cupy object
+        # GENO solver utilizes the GPU through cupy
         m_np = np
         if self.gpu:
-            raise RuntimeError("gpu support not implemented yet")
+            try:
+                import cupy as cp
+                m_np = cp
+            except Exception as e:
+                raise RuntimeError("[ERROR] While attempting to import cupy for GPU support, error ", e, " was raised.")
 
         Ky = self.Y_.T @ self.Y_
         eigenvalues = None
         match self.variation:
             case "default" | "canonical-faster":
-                # TODO: replace with VO solver
                 F = (eigenvectors.T @ eigenvectors) * (eigenvectors.T @ eigenvectors)
                 result, self._alphas, eigenvalues = vo_canonical_solve(
-                    F,
+                    m_np.asarray(F),
                     self.beta,
                     self.gamma,
                     self.delta,
                     self.c,
                     self.Y_,
-                    Ky,
-                    old_eigenvalues,
-                    eigenvectors,
+                    m_np.asarray(Ky),
+                    m_np.asarray(old_eigenvalues),
+                    m_np.asarray(eigenvectors),
                     m_np,
                     0,
                     self.max_iter,
                 )
                 self.n_iter_ = result.nit
-                # print(eigenvalues)
             case _:
                 raise ValueError("unkown variation")
 
-        # print(eigenvalues)
+        if self.gpu:
+            self._alphas = m_np.asnumpy(self._alphas)
+            eigenvalues = m_np.asnumpy(eigenvalues)
+
         K_new = eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T
 
         K_sum = np.zeros((len(y), len(y)))
         for K in Ks:
             K_sum += K
 
-        self._projMatrix = m_np.dot(K_new, m_np.linalg.pinv(K_sum))
+        self._projMatrix = np.dot(K_new, np.linalg.pinv(K_sum))
         self._svinds = np.where(self._alphas > 0)[0]
         self._bias = -(self.Y_) + (np.multiply(self._alphas, self.Y_) @ K_new)
         self._bias = np.median(self._bias[:, self._svinds], axis=1)
@@ -530,8 +541,7 @@ class VectorizedASKFClassifier(ClassifierMixin, BaseEstimator):
         return self
 
     def predict(self, X):
-        """ASKF prediction function. This predictor requires similarties to the
-        complete training data.
+        """ASKF prediction function. This predictor requires similarties to the complete training data.
 
         Parameters
         ----------
@@ -543,8 +553,6 @@ class VectorizedASKFClassifier(ClassifierMixin, BaseEstimator):
         y : ndarray, shape (n_samples,)
             the predicted label
         """
-
-        # Check if fit had been called
         check_is_fitted(self)
 
         Ktests = []
