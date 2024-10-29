@@ -108,7 +108,7 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
     @_fit_context(prefer_skip_nested_validation=True)
     def fit(self, X, y):
         """Fit an ASKF classifier.
-        
+
         Note: As ASKF is purely kernel based, vectorial inputs
         would not make sense here. Instead, deviating from other
         sklearn classifiers, you need to input an (np)array of
@@ -171,9 +171,14 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         if self.gpu:
             try:
                 import cupy as cp
+
                 m_np = cp
             except Exception as e:
-                raise RuntimeError("[ERROR] While attempting to import cupy for GPU support, error ", e, " was raised.")
+                raise RuntimeError(
+                    "[ERROR] While attempting to import cupy for GPU support, error ",
+                    e,
+                    " was raised.",
+                )
 
         match self.variation:
             case "squared-gamma":
@@ -430,7 +435,7 @@ class VectorizedASKFClassifier(ClassifierMixin, BaseEstimator):
     @_fit_context(prefer_skip_nested_validation=True)
     def fit(self, X, y):
         """Fit an ASKF classifier.
-        
+
         Note: As ASKF is purely kernel based, vectorial inputs
         would not make sense here. Instead, deviating from other
         sklearn classifiers, you need to input an (np)array of
@@ -495,9 +500,14 @@ class VectorizedASKFClassifier(ClassifierMixin, BaseEstimator):
         if self.gpu:
             try:
                 import cupy as cp
+
                 m_np = cp
             except Exception as e:
-                raise RuntimeError("[ERROR] While attempting to import cupy for GPU support, error ", e, " was raised.")
+                raise RuntimeError(
+                    "[ERROR] While attempting to import cupy for GPU support, error ",
+                    e,
+                    " was raised.",
+                )
 
         Ky = self.Y_.T @ self.Y_
         eigenvalues = None
