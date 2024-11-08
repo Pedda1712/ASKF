@@ -105,6 +105,19 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
             "three_d_array": True,
         }
 
+    def _get_solver(self):
+        match self.variation:
+            case "squared-gamma":
+                return canonical_squared_gamma_solve
+            case "canonical":
+                return canonical_solve
+            case "default" | "canonical-faster":
+                return canonical_faster_solve
+            case "squared-gamma-faster":
+                return canonical_squared_gamma_faster_solve
+            case _:
+                raise ValueError("unkown variation")
+
     @_fit_context(prefer_skip_nested_validation=True)
     def fit(self, X, y):
         """Fit an ASKF classifier.
@@ -180,73 +193,26 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
                     " was raised.",
                 )
 
-        match self.variation:
-            case "squared-gamma":
-                result, self._alphas, eigenvalues = canonical_squared_gamma_solve(
-                    m_np.asarray(K_old),
-                    self.beta,
-                    self.gamma,
-                    self.delta,
-                    self.c,
-                    m_np.asarray(y),
-                    m_np.asarray(old_eigenvalues),
-                    m_np.asarray(eigenvectors),
-                    m_np,
-                    0,
-                    self.max_iter,
-                )
-                self.n_iter_ = result.nit
-            case "canonical":
-                result, self._alphas, eigenvalues = canonical_solve(
-                    m_np.asarray(K_old),
-                    self.beta,
-                    self.gamma,
-                    self.delta,
-                    self.c,
-                    m_np.asarray(y),
-                    m_np.asarray(old_eigenvalues),
-                    m_np.asarray(eigenvectors),
-                    m_np,
-                    0,
-                    self.max_iter,
-                )
-                self.n_iter_ = result.nit
-            case "default" | "canonical-faster":
-                F = (eigenvectors.T @ eigenvectors) * (eigenvectors.T @ eigenvectors)
-                result, self._alphas, eigenvalues = canonical_faster_solve(
-                    m_np.asarray(F),
-                    self.beta,
-                    self.gamma,
-                    self.delta,
-                    self.c,
-                    m_np.asarray(y),
-                    m_np.asarray(old_eigenvalues),
-                    m_np.asarray(eigenvectors),
-                    m_np,
-                    0,
-                    self.max_iter,
-                )
-                self.n_iter_ = result.nit
-            case "squared-gamma-faster":
-                F = (eigenvectors.T @ eigenvectors) * (eigenvectors.T @ eigenvectors)
-                result, self._alphas, eigenvalues = (
-                    canonical_squared_gamma_faster_solve(
-                        m_np.asarray(F),
-                        self.beta,
-                        self.gamma,
-                        self.delta,
-                        self.c,
-                        m_np.asarray(y),
-                        m_np.asarray(old_eigenvalues),
-                        m_np.asarray(eigenvectors),
-                        m_np,
-                        0,
-                        self.max_iter,
-                    )
-                )
-                self.n_iter_ = result.nit
-            case _:
-                raise ValueError("unkown variation")
+        F = m_np.asarray(
+            (eigenvectors.T @ eigenvectors) * (eigenvectors.T @ eigenvectors)
+        )
+        mysolver = self._get_solver()
+        # solve for result
+        result, self._alphas, eigenvalues = mysolver(
+            F,
+            m_np.asarray(K_old),
+            self.beta,
+            self.gamma,
+            self.delta,
+            self.c,
+            m_np.asarray(y),
+            m_np.asarray(old_eigenvalues),
+            m_np.asarray(eigenvectors),
+            m_np,
+            0,
+            self.max_iter,
+        )
+        self.n_iter_ = result.nit
 
         if self.gpu:
             self._alphas = m_np.asnumpy(self._alphas)
@@ -432,6 +398,13 @@ class VectorizedASKFClassifier(ClassifierMixin, BaseEstimator):
             "multioutput_only": True,
         }
 
+    def _get_solver(self):
+        match self.variation:
+            case "default" | "canonical-faster":
+                return vo_canonical_solve
+            case _:
+                raise ValueError("unkown variation")
+
     @_fit_context(prefer_skip_nested_validation=True)
     def fit(self, X, y):
         """Fit an ASKF classifier.
@@ -511,26 +484,24 @@ class VectorizedASKFClassifier(ClassifierMixin, BaseEstimator):
 
         Ky = self.Y_.T @ self.Y_
         eigenvalues = None
-        match self.variation:
-            case "default" | "canonical-faster":
-                F = (eigenvectors.T @ eigenvectors) * (eigenvectors.T @ eigenvectors)
-                result, self._alphas, eigenvalues = vo_canonical_solve(
-                    m_np.asarray(F),
-                    self.beta,
-                    self.gamma,
-                    self.delta,
-                    self.c,
-                    self.Y_,
-                    m_np.asarray(Ky),
-                    m_np.asarray(old_eigenvalues),
-                    m_np.asarray(eigenvectors),
-                    m_np,
-                    0,
-                    self.max_iter,
-                )
-                self.n_iter_ = result.nit
-            case _:
-                raise ValueError("unkown variation")
+        F = (eigenvectors.T @ eigenvectors) * (eigenvectors.T @ eigenvectors)
+        my_solver = self._get_solver()
+        result, self._alphas, eigenvalues = my_solver(
+            m_np.asarray(F),
+            None,
+            self.beta,
+            self.gamma,
+            self.delta,
+            self.c,
+            self.Y_,
+            m_np.asarray(Ky),
+            m_np.asarray(old_eigenvalues),
+            m_np.asarray(eigenvectors),
+            m_np,
+            0,
+            self.max_iter,
+        )
+        self.n_iter_ = result.nit
 
         if self.gpu:
             self._alphas = m_np.asnumpy(self._alphas)

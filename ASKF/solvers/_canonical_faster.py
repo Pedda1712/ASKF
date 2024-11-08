@@ -227,6 +227,7 @@ class GenoNLP:
 
 def solve(
     F,
+    _K_old,
     beta,
     gamma,
     delta,

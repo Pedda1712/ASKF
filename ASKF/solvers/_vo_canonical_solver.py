@@ -458,6 +458,7 @@ class GenoNLP2:
 
 def solve(
     F,
+    _K_old,
     beta,
     gamma,
     delta,

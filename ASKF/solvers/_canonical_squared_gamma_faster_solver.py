@@ -223,7 +223,8 @@ class GenoNLP:
 
 
 def solve(
-    Kold,
+    F,
+    _K_old,
     beta,
     gamma,
     delta,
@@ -237,7 +238,7 @@ def solve(
 ):
     beta = -beta
     # start = timer()
-    NLP = GenoNLP(Kold, beta, gamma, delta, c, y, eigenvaluesOld, eigenvectors, np)
+    NLP = GenoNLP(F, beta, gamma, delta, c, y, eigenvaluesOld, eigenvectors, np)
     x0 = NLP.getStartingPoint()
     lb = NLP.getLowerBounds()
     ub = NLP.getUpperBounds()
