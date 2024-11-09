@@ -139,7 +139,6 @@ class ASKFEstimator(RegressorMixin, BaseEstimator):
                 np.float64,
                 np.float32,
                 np.float16,
-                np.float128,
                 np.int64,
                 np.int32,
                 np.int16,
