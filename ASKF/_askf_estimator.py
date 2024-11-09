@@ -47,7 +47,21 @@ class ASKFEstimator(RegressorMixin, BaseEstimator):
                   should be the fastest variation
         "canonical", based on canonical ASKF
         "squared-gamma", canonical with squared gamma regularization
-    # TODO : Example
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from sklearn.datasets import make_friedman2
+    >>> from sklearn.preprocessing import StandardScaler
+    >>> X, y = make_friedman2(random_state=42)
+    >>> scl = StandardScaler().fit(X)
+    >>> X = scl.transform(X)
+    >>> K = X @ X.T
+    >>> regr = ASKFEstimator(c=10000, epsilon=0.01)
+    >>> regr.fit(ASKFKernels([K]),y) # doctest:+SKIP
+    >>> regr.score(ASKFKernels([K]),y) # doctest:+SKIP
+
+
     """
 
     _parameter_constraints = {
