@@ -16,6 +16,7 @@ from ASKF.solvers import (
     canonical_faster_solve,
     canonical_squared_gamma_faster_solve,
     vo_canonical_solve,
+    binary_minmax_solve,
 )
 from ASKF.utils import get_spectral_properties
 
@@ -46,6 +47,9 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
     variation : string, default="default"
         ASKF variation to use, may change what the regularization term looks
         like.
+        "minmax", theoretically appropriate ASKF, related to EasyMKL
+                  (!) ignores gamma, delta, beta
+                  should be the fastest variation
         "canonical-faster", canonical ASKF with usual gamma regularization rewritten without fro-norm
         "canonical" | "default", canonical ASKF
         "squared-gamma", canonical ASKF with squared gamma regularization
@@ -111,10 +115,12 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
                 return canonical_squared_gamma_solve
             case "canonical":
                 return canonical_solve
-            case "default" | "canonical-faster":
+            case "canonical-faster":
                 return canonical_faster_solve
             case "squared-gamma-faster":
                 return canonical_squared_gamma_faster_solve
+            case "default" | "minmax":
+                return binary_minmax_solve
             case _:
                 raise ValueError("unkown variation")
 

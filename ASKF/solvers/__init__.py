@@ -8,6 +8,7 @@ from ._canonical_faster import solve as canonical_faster_solve
 from ._canonical_squared_gamma_faster_solver import (
     solve as canonical_squared_gamma_faster_solve,
 )
+from ._binary_minmax import solve as binary_minmax_solve
 
 from ._vo_canonical_solver import solve as vo_canonical_solve
 
@@ -17,4 +18,5 @@ __all__ = [
     "canonical_faster_solve",
     "canonical_squared_gamma_faster_solve",
     "vo_canonical_solve",
+    "binary_minmax_solve",
 ]
