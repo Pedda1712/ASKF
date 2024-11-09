@@ -17,6 +17,7 @@ from ASKF.solvers import (
     canonical_squared_gamma_faster_solve,
     vo_canonical_solve,
     binary_minmax_solve,
+    vo_squared_gamma_solve,
 )
 from ASKF.utils import get_spectral_properties
 
@@ -47,11 +48,11 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
     variation : string, default="default"
         ASKF variation to use, may change what the regularization term looks
         like.
-        "minmax", theoretically appropriate ASKF, related to EasyMKL
+        "minmax" | "default", theory-aligned ASKF, related to EasyMKL
                   (!) ignores gamma, delta, beta
                   should be the fastest variation
         "canonical-faster", canonical ASKF with usual gamma regularization rewritten without fro-norm
-        "canonical" | "default", canonical ASKF
+        "canonical", canonical ASKF
         "squared-gamma", canonical ASKF with squared gamma regularization
         "squared-gamma-faster", like squared-gamma but trace replaced by vector-matrix-vector product
 
@@ -131,7 +132,8 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         Note: As ASKF is purely kernel based, vectorial inputs
         would not make sense here. Instead, deviating from other
         sklearn classifiers, you need to input an (np)array of
-        similarity matrices for the input.
+        similarity matrices for the input (which can be constructed
+        with ASKFKernels function from _kernels.py).
 
         Parameters
         ----------
@@ -323,6 +325,11 @@ class VectorizedASKFClassifier(ClassifierMixin, BaseEstimator):
     Implements a vector-labeled strategy for holisitic treatment
     of multi-classification.
 
+    This comes at the cost of runtime with the underlying solver,
+    which makes this theoretically nice but practically not that
+    interesting. Other solving strategies might eventually make
+    this feasible.
+
     Parameters
     ----------
     beta : float, default=1.0
@@ -343,9 +350,12 @@ class VectorizedASKFClassifier(ClassifierMixin, BaseEstimator):
         Maximum iterations of the underlying genosolver.
     variation : string, default="default"
         ASKF variation to use, may change what the regularization term looks
-        like.
+        like. There's no minmax
+        variation because the underlying solver has issues with the gradient
+        computation.
         "canonical-faster" | "default", canonical ASKF with vector labels
-        "squared-gamma-faster", squared gamma regularization
+        "squared-gamma", canonical ASKF with gamma regularisation term squared
+
 
     Examples
     --------
@@ -408,6 +418,8 @@ class VectorizedASKFClassifier(ClassifierMixin, BaseEstimator):
         match self.variation:
             case "default" | "canonical-faster":
                 return vo_canonical_solve
+            case "squared-gamma":
+                return vo_squared_gamma_solve
             case _:
                 raise ValueError("unkown variation")
 
