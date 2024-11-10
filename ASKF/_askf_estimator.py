@@ -10,7 +10,12 @@ import scipy
 from sklearn.base import BaseEstimator, _fit_context, RegressorMixin
 from sklearn.utils.validation import check_is_fitted
 from ASKF.utils.matrix_decomp import get_spectral_properties
-from ASKF.solvers import canonical_svr_solve, squard_gamma_svr_solve, minmax_svr_solve
+from ASKF.solvers import (
+    canonical_svr_solve,
+    squard_gamma_svr_solve,
+    minmax_svr_solve,
+    minmax_svr_sparse_solve,
+)
 
 
 class ASKFEstimator(RegressorMixin, BaseEstimator):
@@ -37,6 +42,7 @@ class ASKFEstimator(RegressorMixin, BaseEstimator):
         How many eigenvectors of the kernel matrices to consider.
         1.0 considers [n_samples] eigenvectors, values lower than 1 lead
         to lower rank internal kernels. "n_m" keeps all eigenvectors.
+    p: float, default=2.0
     max_iter : int, default=200
         Maximum iterations of the underlying genosolver.
     variation : string, default="default"
@@ -71,6 +77,7 @@ class ASKFEstimator(RegressorMixin, BaseEstimator):
         "c": [float, int],
         "epsilon": [float, int],
         "subsample_size": [float, int],
+        "p": [float, int],
         "max_iter": [int],
         "variation": [str],
         "gpu": [bool],
@@ -84,6 +91,7 @@ class ASKFEstimator(RegressorMixin, BaseEstimator):
         c=1.0,
         epsilon=1.0,
         subsample_size=1.0,
+        p=2.0,
         max_iter=200,
         variation="default",
         gpu=False,
@@ -94,6 +102,7 @@ class ASKFEstimator(RegressorMixin, BaseEstimator):
         self.c = c
         self.epsilon = epsilon
         self.subsample_size = subsample_size
+        self.p = p
         self.max_iter = max_iter
         self.variation = variation
         self.gpu = gpu
@@ -110,6 +119,9 @@ class ASKFEstimator(RegressorMixin, BaseEstimator):
         match self.variation:
             case "minmax" | "default":
                 return minmax_svr_solve
+            case "minmax-sparse":
+                self.beta = self.p
+                return minmax_svr_sparse_solve
             case "canonical":
                 return canonical_svr_solve
             case "squared-gamma":
@@ -213,6 +225,9 @@ class ASKFEstimator(RegressorMixin, BaseEstimator):
             self._a1 = m_np.asnumpy(self._a1)
             self._a2 = m_np.asnumpy(self._a2)
             eigenvalues = m_np.asnumpy(eigenvalues)
+
+        self._eigenvalues = eigenvalues
+        self._old_eigenvalues = old_eigenvalues
 
         self._a = self._a1 - self._a2
         K_new = eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T

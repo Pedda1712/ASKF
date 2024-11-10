@@ -15,6 +15,7 @@ from ._vo_squared_gamma_solver import solve as vo_squared_gamma_solve
 from ._squared_gamma_svr_solver import solve as squard_gamma_svr_solve
 from ._minmax_svr import solve as minmax_svr_solve
 from ._binary_minmax_sparse import solve as binary_minmax_sparse_solve
+from ._minmax_svr_sparse import solve as minmax_svr_sparse_solve
 
 __all__ = [
     "canonical_solve",
@@ -28,4 +29,5 @@ __all__ = [
     "canonical_svr_solve",
     "squard_gamma_svr_solve",
     "minmax_svr_solve",
+    "minmax_svr_sparse_solve",
 ]
