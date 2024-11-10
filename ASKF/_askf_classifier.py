@@ -18,6 +18,7 @@ from ASKF.solvers import (
     vo_canonical_solve,
     binary_minmax_solve,
     vo_squared_gamma_solve,
+    binary_minmax_sparse_solve,
 )
 from ASKF.utils import get_spectral_properties
 
@@ -43,14 +44,19 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         How many eigenvectors of the kernel matrices to consider.
         1.0 considers [n_samples] eigenvectors, values lower than 1 lead
         to lower rank internal kernels. "n_m" keeps all eigenvectors.
+    p: float, default=2.0
+       if variation="minmax-sparse", this controls the sparsity of the learned
+       kernel weights, lower than 2 features exponentially more sparse solutions
     max_iter : int, default=200
         Maximum iterations of the underlying genosolver.
     variation : string, default="default"
         ASKF variation to use, may change what the regularization term looks
         like.
         "minmax" | "default", theory-aligned ASKF, related to EasyMKL
-                  (!) ignores gamma, delta, beta
+                  (!) ignores gamma, delta, beta, p
                   should be the fastest variation
+        "minmax-sparse", like "minmax" but takes p parameter to control
+                  sparsity
         "canonical-faster", canonical ASKF with usual gamma regularization rewritten without fro-norm
         "canonical", canonical ASKF
         "squared-gamma", canonical ASKF with squared gamma regularization
@@ -76,6 +82,7 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         "delta": [float, int],
         "c": [float, int],
         "subsample_size": [float, int],
+        "p": [float, int],
         "max_iter": [int],
         "variation": [str],
         "gpu": [bool],
@@ -88,6 +95,7 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         delta=1.0,
         c=1.0,
         subsample_size=1.0,
+        p=2.0,
         max_iter=200,
         variation="default",
         gpu=False,
@@ -99,6 +107,7 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         self.subsample_size = subsample_size
         self.max_iter = max_iter
         self.variation = variation
+        self.p = p
         self.gpu = gpu
         self._pairwise = True
 
@@ -122,6 +131,9 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
                 return canonical_squared_gamma_faster_solve
             case "default" | "minmax":
                 return binary_minmax_solve
+            case "minmax-sparse":
+                self.beta = self.p
+                return binary_minmax_sparse_solve
             case _:
                 raise ValueError("unkown variation")
 
@@ -225,6 +237,9 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         if self.gpu:
             self._alphas = m_np.asnumpy(self._alphas)
             eigenvalues = m_np.asnumpy(eigenvalues)
+
+        self._old_eigenvalues = old_eigenvalues
+        self._eigenvalues = eigenvalues
 
         K_new = eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T
 
