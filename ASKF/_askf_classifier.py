@@ -19,6 +19,7 @@ from ASKF.solvers import (
     binary_minmax_solve,
     vo_squared_gamma_solve,
     binary_minmax_sparse_solve,
+    binary_minmax_sparse2_solve,
 )
 from ASKF.utils import get_spectral_properties
 
@@ -46,7 +47,11 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         to lower rank internal kernels. "n_m" keeps all eigenvectors.
     p: float, default=2.0
        if variation="minmax-sparse", this controls the sparsity of the learned
-       kernel weights, lower than 2 features exponentially more sparse solutions
+       kernel weights, where 0 imposes no sparsity benefit and larger values
+       favor sparser solutions (this should be more stable than "minmax-sparse-pnorm")
+       if variation="minmax-sparse-pnorm", this controls the sparsity of the learned
+       kernel weights, lower than 2 features exponentially more sparse solutions,
+       but might become instable for p<1
     max_iter : int, default=200
         Maximum iterations of the underlying genosolver.
     variation : string, default="default"
@@ -131,9 +136,12 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
                 return canonical_squared_gamma_faster_solve
             case "default" | "minmax":
                 return binary_minmax_solve
-            case "minmax-sparse":
+            case "minmax-sparse-pnorm":
                 self.beta = self.p
                 return binary_minmax_sparse_solve
+            case "minmax-sparse":
+                self.beta = self.p
+                return binary_minmax_sparse2_solve
             case _:
                 raise ValueError("unkown variation")
 

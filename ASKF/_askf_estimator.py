@@ -15,6 +15,7 @@ from ASKF.solvers import (
     squard_gamma_svr_solve,
     minmax_svr_solve,
     minmax_svr_sparse_solve,
+    minmax_svr_sparse2_solve,
 )
 
 
@@ -43,6 +44,14 @@ class ASKFEstimator(RegressorMixin, BaseEstimator):
         1.0 considers [n_samples] eigenvectors, values lower than 1 lead
         to lower rank internal kernels. "n_m" keeps all eigenvectors.
     p: float, default=2.0
+       controls sparsity of learned kernel weights only works for:
+       "minmax-sparse", where 0 does not incur sparsity, and larger values
+          penalize non-sparse solutions by factor
+            'pow((norm1(weights)/norm2(weights)), p)'
+       "minmax-sparse-pnorm", where 2 incurs no sparsity,
+          and smaller values (toward 0) favor sparser solutions :
+            'p_norm(weights)/norm2(weights)'
+          this becomes somewhat unstable for p < 1
     max_iter : int, default=200
         Maximum iterations of the underlying genosolver.
     variation : string, default="default"
@@ -119,9 +128,12 @@ class ASKFEstimator(RegressorMixin, BaseEstimator):
         match self.variation:
             case "minmax" | "default":
                 return minmax_svr_solve
-            case "minmax-sparse":
+            case "minmax-sparse-pnorm":
                 self.beta = self.p
                 return minmax_svr_sparse_solve
+            case "minmax-sparse":
+                self.beta = self.p
+                return minmax_svr_sparse2_solve
             case "canonical":
                 return canonical_svr_solve
             case "squared-gamma":
