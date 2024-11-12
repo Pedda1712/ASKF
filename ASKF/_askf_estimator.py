@@ -129,10 +129,8 @@ class ASKFEstimator(RegressorMixin, BaseEstimator):
             case "minmax" | "default":
                 return minmax_svr_solve
             case "minmax-sparse-pnorm":
-                self.beta = self.p
                 return minmax_svr_sparse_solve
             case "minmax-sparse":
-                self.beta = self.p
                 return minmax_svr_sparse2_solve
             case "canonical":
                 return canonical_svr_solve
@@ -196,6 +194,7 @@ class ASKFEstimator(RegressorMixin, BaseEstimator):
         # askf classification
         eigenprops = get_spectral_properties(Ks, self.subsample_size)
         old_eigenvalues = eigenprops["eigenvalues"]
+        self._old_eigenvalues = old_eigenvalues
         eigenvectors = eigenprops["eigenvectors"]
 
         # GENO solver utilizes the GPU through cupy
@@ -216,6 +215,7 @@ class ASKFEstimator(RegressorMixin, BaseEstimator):
             (eigenvectors.T @ eigenvectors) * (eigenvectors.T @ eigenvectors)
         )
         mysolver = self._get_solver()
+        oldsum = np.linalg.norm(self._old_eigenvalues)
         result, self._a1, self._a2, eigenvalues = mysolver(
             m_np.asarray(F),
             self.beta,
@@ -226,6 +226,8 @@ class ASKFEstimator(RegressorMixin, BaseEstimator):
             m_np.asarray(old_eigenvalues),
             m_np.asarray(eigenvectors),
             self.epsilon,
+            oldsum,
+            self.p,
             m_np,
             0,
             self.max_iter,

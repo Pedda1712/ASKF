@@ -232,6 +232,8 @@ def solve(
     y,
     eigenvaluesOld,
     eigenvectors,
+    oldsum,
+    p,
     np,
     verbose,
     max_iter=3000,

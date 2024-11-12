@@ -228,11 +228,12 @@ def solve(
     eigenvaluesOld,
     eigenvectors,
     epsilon,
+    oldsum,
+    p,
     np,
     verbose,
     max_iter=3000,
 ):
-    oldsum = np.linalg.norm(eigenvaluesOld)
     result, a1, a2 = solveI(
         c, y, eigenvaluesOld, eigenvectors, epsilon, oldsum, np, verbose, max_iter
     )

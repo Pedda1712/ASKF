@@ -267,6 +267,8 @@ def solve(
     eigenvaluesOld,
     eigenvectors,
     epsilon,
+    _oldsum,
+    _p,
     np,
     verbose,
     max_iter=3000,

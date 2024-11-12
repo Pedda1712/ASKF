@@ -279,13 +279,14 @@ def solve(
     eigenvaluesOld,
     eigenvectors,
     epsilon,
+    oldsum,
+    p,
     np,
     verbose,
     max_iter=3000,
 ):
-    oldsum = np.linalg.norm(eigenvaluesOld)
     result, a1, a2 = solveI(
-        c, y, eigenvaluesOld, eigenvectors, epsilon, oldsum, beta, np, verbose, max_iter
+        c, y, eigenvaluesOld, eigenvectors, epsilon, oldsum, p, np, verbose, max_iter
     )
     # eigvals are only implicit parameter (depend in closed form
     # on alphas), calculate explicitly here

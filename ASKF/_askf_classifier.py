@@ -137,10 +137,8 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
             case "default" | "minmax":
                 return binary_minmax_solve
             case "minmax-sparse-pnorm":
-                self.beta = self.p
                 return binary_minmax_sparse_solve
             case "minmax-sparse":
-                self.beta = self.p
                 return binary_minmax_sparse2_solve
             case _:
                 raise ValueError("unkown variation")
@@ -202,6 +200,7 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         # askf classification
         eigenprops = get_spectral_properties(Ks, self.subsample_size)
         old_eigenvalues = eigenprops["eigenvalues"]
+        self._old_eigenvalues = old_eigenvalues
         eigenvectors = eigenprops["eigenvectors"]
 
         K_old = eigenvectors @ np.diag(old_eigenvalues) @ eigenvectors.T
@@ -225,6 +224,8 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
             (eigenvectors.T @ eigenvectors) * (eigenvectors.T @ eigenvectors)
         )
         mysolver = self._get_solver()
+        oldsum = np.linalg.norm(self._old_eigenvalues)
+
         # solve for result
         result, self._alphas, eigenvalues = mysolver(
             F,
@@ -236,6 +237,8 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
             m_np.asarray(y),
             m_np.asarray(old_eigenvalues),
             m_np.asarray(eigenvectors),
+            oldsum,
+            self.p,
             m_np,
             0,
             self.max_iter,
@@ -246,7 +249,6 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
             self._alphas = m_np.asnumpy(self._alphas)
             eigenvalues = m_np.asnumpy(eigenvalues)
 
-        self._old_eigenvalues = old_eigenvalues
         self._eigenvalues = eigenvalues
 
         K_new = eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T
