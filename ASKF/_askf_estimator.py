@@ -216,29 +216,35 @@ class ASKFEstimator(RegressorMixin, BaseEstimator):
         )
         mysolver = self._get_solver()
         oldsum = np.linalg.norm(self._old_eigenvalues)
-        result, self._a1, self._a2, eigenvalues = mysolver(
-            m_np.asarray(F),
-            self.beta,
-            self.gamma,
-            self.delta,
-            self.c,
-            m_np.asarray(y),
-            m_np.asarray(old_eigenvalues),
-            m_np.asarray(eigenvectors),
-            self.epsilon,
-            oldsum,
-            self.p,
-            m_np,
-            0,
-            self.max_iter,
-        )
+        try:
+            result, self._a1, self._a2, eigenvalues = mysolver(
+                m_np.asarray(F),
+                self.beta,
+                self.gamma,
+                self.delta,
+                self.c,
+                m_np.asarray(y),
+                m_np.asarray(old_eigenvalues),
+                m_np.asarray(eigenvectors),
+                self.epsilon,
+                oldsum,
+                self.p,
+                m_np,
+                0,
+                self.max_iter,
+            )
 
-        self.n_iter_ = result.nit
+            self.n_iter_ = result.nit
 
-        if self.gpu:
-            self._a1 = m_np.asnumpy(self._a1)
-            self._a2 = m_np.asnumpy(self._a2)
-            eigenvalues = m_np.asnumpy(eigenvalues)
+            if self.gpu:
+                self._a1 = m_np.asnumpy(self._a1)
+                self._a2 = m_np.asnumpy(self._a2)
+                eigenvalues = m_np.asnumpy(eigenvalues)
+        except Exception as e:
+            print("[ERROR] : an error occurred during solving : ", e)
+            self._a1 = np.ones(y.shape)
+            self._a2 = np.zeros(y.shape)
+            eigenvalues = np.ones(eigenvectors.shape[1])
 
         self._eigenvalues = eigenvalues
         self._old_eigenvalues = old_eigenvalues

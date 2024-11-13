@@ -227,27 +227,31 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         oldsum = np.linalg.norm(self._old_eigenvalues)
 
         # solve for result
-        result, self._alphas, eigenvalues = mysolver(
-            F,
-            m_np.asarray(K_old),
-            self.beta,
-            self.gamma,
-            self.delta,
-            self.c,
-            m_np.asarray(y),
-            m_np.asarray(old_eigenvalues),
-            m_np.asarray(eigenvectors),
-            oldsum,
-            self.p,
-            m_np,
-            0,
-            self.max_iter,
-        )
-        self.n_iter_ = result.nit
-
-        if self.gpu:
-            self._alphas = m_np.asnumpy(self._alphas)
-            eigenvalues = m_np.asnumpy(eigenvalues)
+        try:
+            result, self._alphas, eigenvalues = mysolver(
+                F,
+                m_np.asarray(K_old),
+                self.beta,
+                self.gamma,
+                self.delta,
+                self.c,
+                m_np.asarray(y),
+                m_np.asarray(old_eigenvalues),
+                m_np.asarray(eigenvectors),
+                oldsum,
+                self.p,
+                m_np,
+                0,
+                self.max_iter,
+            )
+            self.n_iter_ = result.nit
+            if self.gpu:
+                self._alphas = m_np.asnumpy(self._alphas)
+                eigenvalues = m_np.asnumpy(eigenvalues)
+        except Exception as e:
+            print("[ERROR] an error occurred during solving: ", e)
+            self._alphas = np.ones(y.shape)
+            eigenvalues = np.ones(eigenvectors.shape[1])
 
         self._eigenvalues = eigenvalues
 
@@ -529,26 +533,31 @@ class VectorizedASKFClassifier(ClassifierMixin, BaseEstimator):
         eigenvalues = None
         F = (eigenvectors.T @ eigenvectors) * (eigenvectors.T @ eigenvectors)
         my_solver = self._get_solver()
-        result, self._alphas, eigenvalues = my_solver(
-            m_np.asarray(F),
-            None,
-            self.beta,
-            self.gamma,
-            self.delta,
-            self.c,
-            self.Y_,
-            m_np.asarray(Ky),
-            m_np.asarray(old_eigenvalues),
-            m_np.asarray(eigenvectors),
-            m_np,
-            0,
-            self.max_iter,
-        )
-        self.n_iter_ = result.nit
+        try:
+            result, self._alphas, eigenvalues = my_solver(
+                m_np.asarray(F),
+                None,
+                self.beta,
+                self.gamma,
+                self.delta,
+                self.c,
+                self.Y_,
+                m_np.asarray(Ky),
+                m_np.asarray(old_eigenvalues),
+                m_np.asarray(eigenvectors),
+                m_np,
+                0,
+                self.max_iter,
+            )
+            self.n_iter_ = result.nit
 
-        if self.gpu:
-            self._alphas = m_np.asnumpy(self._alphas)
-            eigenvalues = m_np.asnumpy(eigenvalues)
+            if self.gpu:
+                self._alphas = m_np.asnumpy(self._alphas)
+                eigenvalues = m_np.asnumpy(eigenvalues)
+        except Exception as e:
+            print("[ERROR]: an error occurred during solving: ", e)
+            self._alphas = np.ones(eigenvectors.shape[0])
+            eigenvalues = np.ones(eigenvectors.shape[1])
 
         K_new = eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T
 
