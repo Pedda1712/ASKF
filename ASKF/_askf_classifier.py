@@ -541,7 +541,7 @@ class VectorizedASKFClassifier(ClassifierMixin, BaseEstimator):
                 self.gamma,
                 self.delta,
                 self.c,
-                self.Y_,
+                m_np.asarray(self.Y_),
                 m_np.asarray(Ky),
                 m_np.asarray(old_eigenvalues),
                 m_np.asarray(eigenvectors),
