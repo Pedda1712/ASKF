@@ -27,4 +27,5 @@ genosolver can also be installed from the python package index, but installation
 References
 ==========
 [1] Soeren Laue, Mark Blacher, and Joachim Giesen. Optimization for Classical Machine Learning Problems on the GPU, AAAI 2022.
+
 [2] Soeren Laue, Matthias Mitterreiter, and Joachim Giesen. GENO -- GENeric Optimization for Classical Machine Learning, NeurIPS 2019.
