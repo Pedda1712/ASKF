@@ -5,7 +5,7 @@ ASKF - Adaptive Subspace Kernel Fusion
 kernel subspace information. This repository contains an effort
 to provide a sklearn-compatible implementation of the method.
 
-This project uses the `genosolver <https://www.geno-project.org/>`_ [1][2].
+This project uses the  [genosolver](https://www.geno-project.org/) [1][2].
 
 Creating a fresh project for use with ASKF on the command line could be done as:
 ```bash
