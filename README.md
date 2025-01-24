@@ -22,7 +22,7 @@ pip install ./ASKF
 cp ASKF/examples/*.py .
 python <...>.py
 ```
-genosolver can also be installed from the python package index, but installation from source is recommended for GPU support.
+genosolver can also be installed from the python package index, but installation from source is recommended for GPU support. GPU support further requires an NVidia Cuda installation and the cupy package to be manually installed.
 
 References
 ==========
