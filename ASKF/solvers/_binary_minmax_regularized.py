@@ -47,12 +47,13 @@ except ImportError:
 
 
 class GenoNLP:
-    def __init__(self, y, Q, C, oldsum, r, np):
+    def __init__(self, y, Q, C, oldsum, lendim, r, np):
         self.np = np
         self.y = y
         self.Q = Q
         self.C = C
         self.oldsum = oldsum
+        self.lendim = lendim
         self.r = r
         assert isinstance(y, self.np.ndarray)
         dim = y.shape
@@ -113,11 +114,11 @@ class GenoNLP:
         t_2 = 1 - self.r
         t_3 = self.np.sum((t_1**4))
         t_4 = t_1**2
-        t_5 = self.r * self.np.ones(self.Q_cols)
+        t_5 = (self.r / self.lendim) * self.np.ones(self.Q_cols)
         t_6 = ((t_2 / t_3) * t_4) + t_5
         t_7 = self.np.linalg.norm(t_6)
         t_8 = self.oldsum * t_2
-        t_9 = ((t_8 / t_3) * t_4) + t_5
+        t_9 = ((t_8 / t_3) * t_4) + (self.r * self.np.ones(self.Q_cols))
         t_10 = (self.Q).dot((t_9 * t_1))
         t_11 = (t_0).dot(self.Q)
         t_12 = self.np.sum((t_11**4))
@@ -158,8 +159,8 @@ class GenoNLP:
         return gv_
 
 
-def solveI(y, Q, C, oldsum, r, np, verbose, max_iter):
-    NLP = GenoNLP(y, Q, C, oldsum, r, np)
+def solveI(y, Q, C, oldsum, lendim, r, np, verbose, max_iter):
+    NLP = GenoNLP(y, Q, C, oldsum, lendim, r, np)
     x0 = NLP.getStartingPoint()
     lb = NLP.getLowerBounds()
     ub = NLP.getUpperBounds()
@@ -221,7 +222,11 @@ def solve(
     verbose,
     max_iter=3000,
 ):
-    result, alphas = solveI(y, eigenvectors, c, oldsum, r, np, verbose, max_iter)
+    import numpy as np
+
+    result, alphas = solveI(
+        y, eigenvectors, c, oldsum, np.sqrt(F.shape[0]), r, np, verbose, max_iter
+    )
 
     new_eigvals = (
         (1 - r)
