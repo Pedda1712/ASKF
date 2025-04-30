@@ -237,6 +237,7 @@ def solve(
     eigenvectors,
     oldsum,
     p,
+    r,
     np,
     verbose,
     max_iter=3000,

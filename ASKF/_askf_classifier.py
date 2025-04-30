@@ -17,6 +17,7 @@ from ASKF.solvers import (
     canonical_squared_gamma_faster_solve,
     vo_canonical_solve,
     binary_minmax_solve,
+    binary_minmax_regularized_solve,
     vo_squared_gamma_solve,
     binary_minmax_sparse_solve,
     binary_minmax_sparse2_solve,
@@ -52,6 +53,10 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
        if variation="minmax-sparse-pnorm", this controls the sparsity of the learned
        kernel weights, lower than 2 features exponentially more sparse solutions,
        but might become instable for p<1
+    r: float, default=0.5
+       if variation="minmax-regularized" this controls the subspace weight regularization
+       larger values of r will lead to more uniform subspace weights, thus reducing model
+       capacity, leading to a better generalization bound
     max_iter : int, default=200
         Maximum iterations of the underlying genosolver.
     variation : string, default="default"
@@ -60,6 +65,10 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         "minmax" | "default", theory-aligned ASKF, related to EasyMKL
                   (!) ignores gamma, delta, beta, p
                   should be the fastest variation
+        "minmax-regularized", like "minmax" but additional regularization to reduce model
+                  capacity (better generalization bound)
+                  (!) ignores gamma, delta, beta, p
+                  regularization parameter "r" takes values between 0 and 1
         "minmax-sparse", like "minmax" but takes p parameter to control
                   sparsity
         "canonical-faster", canonical ASKF with usual gamma regularization rewritten without fro-norm
@@ -88,6 +97,7 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         "c": [float, int],
         "subsample_size": [float, int],
         "p": [float, int],
+        "r": [float, int],
         "max_iter": [int],
         "variation": [str],
         "gpu": [bool],
@@ -101,6 +111,7 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         c=1.0,
         subsample_size=1.0,
         p=2.0,
+        r=0.5,
         max_iter=200,
         variation="default",
         gpu=False,
@@ -113,6 +124,7 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
         self.max_iter = max_iter
         self.variation = variation
         self.p = p
+        self.r = r
         self.gpu = gpu
         self._pairwise = True
 
@@ -140,6 +152,8 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
                 return binary_minmax_sparse_solve
             case "minmax-sparse":
                 return binary_minmax_sparse2_solve
+            case "minmax-regularized":
+                return binary_minmax_regularized_solve
             case _:
                 raise ValueError("unkown variation")
 
@@ -240,6 +254,7 @@ class BinaryASKFClassifier(ClassifierMixin, BaseEstimator):
                 m_np.asarray(eigenvectors),
                 oldsum,
                 self.p,
+                self.r,
                 m_np,
                 0,
                 self.max_iter,

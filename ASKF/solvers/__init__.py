@@ -18,6 +18,7 @@ from ._binary_minmax_sparse import solve as binary_minmax_sparse_solve
 from ._minmax_svr_sparse import solve as minmax_svr_sparse_solve
 from ._binary_minmax_sparse2 import solve as binary_minmax_sparse2_solve
 from ._minmax_svr_sparse2 import solve as minmax_svr_sparse2_solve
+from ._binary_minmax_regularized import solve as binary_minmax_regularized_solve
 
 __all__ = [
     "canonical_solve",
@@ -27,6 +28,7 @@ __all__ = [
     "vo_canonical_solve",
     "binary_minmax_solve",
     "binary_minmax_sparse_solve",
+    "binary_minmax_regularized_solve",
     "vo_squared_gamma_solve",
     "canonical_svr_solve",
     "squard_gamma_svr_solve",
